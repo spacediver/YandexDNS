@@ -1,11 +1,13 @@
+#!/usr/bin/python3
 __author__ = 'deface'
-from urllib import request, parse
+
+import requests
 import json
 import logging
 import re
+import sys
 
-
-class YandexDNS(object):
+class YandexDNS:
     # API URLS
     host = "https://pddimp.yandex.ru/api2/admin/dns/"
     request = ""
@@ -20,17 +22,11 @@ class YandexDNS(object):
                             filename='dns_updater.log')
         self._get_records()
 
-
     def _send(self, url, data=None):
-        try:
-            if data is not None:
-                data = parse.urlencode(data).encode("utf-8")
-            req = request.Request(self.host + url, data, {'PddToken': self.token})
-            resp = request.urlopen(req).read().decode("utf-8")
-            return json.loads(resp)
-        except:
-            logging.critical("Ошибка при отправке запроса")
-
+        if data is not None:
+            data = parse.urlencode(data).encode("utf-8")
+        resp = requests.get(self.host + url, data=data, headers={'PddToken': self.token})
+        return json.loads(resp.content.decode('utf-8'))
 
     def update(self, data, query=None, custom=None):
         if custom is not None and len(custom):
@@ -43,10 +39,10 @@ class YandexDNS(object):
         for rec in records:
             for key in data.keys():
                 rec[key] = data[key]
-            logging.info("Обновляем запись" + rec[key])
+            logging.info("Updating " + rec[key])
             self._send("edit", rec)
 
-    def list(self, query):
+    def list(self, query=None):
         if query is not None:
             return self._query(query)
         return self.records
@@ -58,19 +54,7 @@ class YandexDNS(object):
     def _query(self, query):
         result = []
         match = True
-        for rec in self.records:
-            for key in query.keys():
-                try:
-                    if rec[key].strip() != query[key].strip():
-                        match = False
-                except(KeyError, IndexError):
-                    match = False
-                    continue
-            if match:
-                result.append(rec)
-            match = True
-
-        return result
+        return query
 
     def add(self, record):
         if "type" not in record.keys() or "content" not in record.keys():
@@ -80,36 +64,8 @@ class YandexDNS(object):
     def delete(self):
         pass
 
-    @staticmethod
-    def get_my_ip():
-        sources = [{"ip": "http://api.ipify.org/?format=json"},
-                   {"ip_addr": "http://ifconfig.me/all.json", },
-                   {"ip": "http://www.trackip.net/ip?json"}]
-
-        for source in sources:
-            for key in source.keys():
-                try:
-                    response = request.urlopen(source[key], timeout=5).read().decode("utf-8")
-                    parsed = json.loads(response)
-                    ip = parsed[key]
-                    pattern = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
-                    test_ip = re.compile(pattern)
-                    if test_ip.match(ip):
-                        return ip
-                except:
-                    logging.warning(u"не доступен: " + source[key])
-
-
 if __name__ == '__main__':
-    domains = {'0xdeface.pro': 'NJW7BCB5DDSUZT262YVD6S24RASKVT3FILR3RXDUSYEWXAJ6CIOQ',
-               '0xdeface.ru': '7FBCETRWVGOUWCF4S63NLKACP52PVKG4TR3LRCOAMM5QKVPLST5A',
-               '0xdef.ru': 'KDXVJ4FXZQNQMGOWG65TFJO343XAZQSOUINI52UQREGPDT46XWFQ'
-    }
+    yad = YandexDNS(domain='sutyrin.pro', token=sys.argv[1])
 
-    ip = YandexDNS.get_my_ip()
-    for domain in domains.keys():
-        yad = YandexDNS(domain, domains[domain])
-        rec = yad.list({'type': 'A'})
-        for r in rec:
-            if r["content"] != ip:
-                yad.update({'content': ip}, {'type': 'A'})
+    print (yad.list())
+
