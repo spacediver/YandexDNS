@@ -65,7 +65,7 @@ class YandexDNS:
         pass
 
 if __name__ == '__main__':
-    yad = YandexDNS(domain='sutyrin.pro', token=sys.argv[1])
+    yad = YandexDNS(domain=sys.argv[1], token=sys.argv[2])
 
-    print (yad.list())
+    print ('\n'.join(['{subdomain} {type} {content} {ttl}'.format(**d) for d in yad.list()]))
 
